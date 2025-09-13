@@ -11,15 +11,15 @@ local Camera = workspace.CurrentCamera
 local ModifierEnabled = false
 local ESPEnabled = false
 local ESPPlayers = true
-local ESPTools = true
+local ESPTools = false
 local AimlockEnabled = false
 local FOVEnabled = true
 local FOVRadius = 150
 local FOVSliderValue = 70 -- default FOV
 local LoopConnection = nil
-local PlayerESP = {}
+local PlayerESP = {true}
 local ToolESP = {}
-local FOVCircle = nil
+local FOVCircle = true
 
 -- ===== HELPER FUNCTIONS =====
 local function findTablesWithS()
