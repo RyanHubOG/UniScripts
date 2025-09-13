@@ -47,102 +47,76 @@ local function stopModifier()
 end
 
 -- ===== ESP =====
-local function createText()
-    local t = Drawing.new("Text")
-    t.Size=16 t.Center=true t.Outline=true t.Visible=true t.ZIndex=2
-    return t
+local settings = {
+    Color = Color3.fromRGB(0, 255, 0), -- Changed text color to green
+    Size = 15,
+    Transparency = 1, -- 1 Visible - 0 Not Visible
+    AutoScale = true
+}
+
+local space = game:GetService("Workspace")
+local player = game:GetService("Players").LocalPlayer
+local camera = space.CurrentCamera
+
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Blissful4992/ESPs/main/UniversalSkeleton.lua"))()
+
+local Skeletons = {}
+
+local function NewText(color, size, transparency)
+    local text = Drawing.new("Text")
+    text.Visible = false
+    text.Text = ""
+    text.Position = Vector2.new(0, 0)
+    text.Color = color
+    text.Size = size
+    text.Center = true
+    text.Transparency = transparency
+    return text
 end
 
-local function createBox()
-    local b = Drawing.new("Square")
-    b.Thickness=2 b.Filled=false b.Visible=true b.ZIndex=2
-    return b
-end
+local function CreateSkeleton(plr)
+    local skeleton = Library:NewSkeleton(plr, true)
+    skeleton.Size = 50 -- Super wide and large for maximum visibility
+    skeleton.Static = true -- Ensures the skeleton stays still
+    table.insert(Skeletons, skeleton)
 
-local function worldToViewport(pos)
-    local screenPoint, onScreen = Camera:WorldToViewportPoint(pos)
-    return Vector2.new(screenPoint.X, screenPoint.Y), onScreen
-end
+    local nameTag = NewText(settings.Color, settings.Size, settings.Transparency)
 
-local function addPlayerESP(plr)
-    if PlayerESP[plr] then return end
-    local text = createText()
-    local box = createBox()
-    PlayerESP[plr] = {plr=plr, box=box, text=text}
-end
-
-local function removePlayerESP(plr)
-    if PlayerESP[plr] then
-        pcall(function() PlayerESP[plr].box:Remove() end)
-        pcall(function() PlayerESP[plr].text:Remove() end)
-        PlayerESP[plr]=nil
-    end
-end
-
-local function addToolESP(inst)
-    if ToolESP[inst] then return end
-    local text = createText()
-    text.Text = inst.Name
-    ToolESP[inst]={inst=inst,text=text}
-end
-
-local function removeToolESP(inst)
-    if ToolESP[inst] then
-        pcall(function() ToolESP[inst].text:Remove() end)
-        ToolESP[inst]=nil
-    end
-end
-
-local function updateESP()
-    if not ESPEnabled then return end
-    -- Player ESP
-    if ESPPlayers then
-        for _, plr in pairs(Players:GetPlayers()) do
-            if plr~=LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-                addPlayerESP(plr)
-                local data=PlayerESP[plr]
-                local hrp=plr.Character.HumanoidRootPart
-                local topPos=hrp.Position+Vector3.new(0,2,0)
-                local botPos=hrp.Position-Vector3.new(0,1,0)
-                local top2D, topOn=worldToViewport(topPos)
-                local bot2D, botOn=worldToViewport(botPos)
-                if topOn and botOn then
-                    local height=math.abs(top2D.Y-bot2D.Y)
-                    local width=math.clamp(height*0.5,20,120)
-                    data.box.Size=Vector2.new(width,height)
-                    data.box.Position=top2D-Vector2.new(width/2,0)
-                    data.box.Visible=true
-                    data.text.Position=top2D-Vector2.new(0,12)
-                    data.text.Text=plr.Name
-                    data.text.Visible=true
-                else
-                    data.box.Visible=false
-                    data.text.Visible=false
-                end
+    game:GetService("RunService").RenderStepped:Connect(function()
+        if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local HumanoidRootPart_Pos, OnScreen = camera:WorldToViewportPoint(plr.Character.HumanoidRootPart.Position)
+            if OnScreen then
+                local distance = math.floor((player.Character.HumanoidRootPart.Position - plr.Character.HumanoidRootPart.Position).magnitude)
+                nameTag.Text = string.format("%s [%d Studs]", plr.Name, distance)
+                nameTag.Position = Vector2.new(HumanoidRootPart_Pos.X, HumanoidRootPart_Pos.Y - 50)
+                nameTag.Visible = true
             else
-                removePlayerESP(plr)
+                nameTag.Visible = false
             end
+        else
+            nameTag.Visible = false
+        end
+    end)
+end
+
+for _, plr in pairs(game.Players:GetPlayers()) do
+    if plr.Name ~= player.Name then
+        CreateSkeleton(plr)
+    end
+end
+
+game.Players.PlayerAdded:Connect(function(plr)
+    CreateSkeleton(plr)
+end)
+
+-- Lock skeletons in place and prevent movement
+while true do
+    for _, skeleton in pairs(Skeletons) do
+        if skeleton.Part then
+            skeleton.Part.Anchored = true -- Ensures the skeleton doesn't move
         end
     end
-    -- Tool ESP
-    if ESPTools then
-        for _, inst in pairs(workspace:GetDescendants()) do
-            if (inst:IsA("Tool") or inst:IsA("Model")) and inst.PrimaryPart then
-                addToolESP(inst)
-                local data=ToolESP[inst]
-                local p2D, onScreen=worldToViewport(inst.PrimaryPart.Position)
-                if onScreen then
-                    data.text.Position=p2D
-                    data.text.Visible=true
-                else
-                    data.text.Visible=false
-                end
-            end
-        end
-        for inst,_ in pairs(ToolESP) do
-            if not inst:IsDescendantOf(game) then removeToolESP(inst) end
-        end
-    end
+    wait(0.1)
 end
 
 -- ===== AIMLOCK =====
